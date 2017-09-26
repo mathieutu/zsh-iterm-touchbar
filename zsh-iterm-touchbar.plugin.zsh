@@ -81,7 +81,8 @@ pecho() {
 }
 
 # F1-12: https://github.com/vmalloc/zsh-config/blob/master/extras/function_keys.zsh
-fnKeys=('^[OP' '^[OQ' '^[OR' '^[OS' '^[[15~' '^[[17~' '^[[18~' '^[[19~' '^[[20~' '^[[21~' '^[[23~' '^[[24~')
+declare -A fnKeys=( 'F1' '^[OP' 'F2' '^[OQ' 'F3' '^[OR' 'F4' '^[OS' 'F5' '^[[15~' 'F6' '^[[17~' 'F7' '^[[18~' 'F8' '^[[19~' 'F9' '^[[20~'  '10' '^[[21~'  '11' '^[[23~'  '12' '^[[24~' )
+
 touchBarState=''
 npmScripts=()
 lastPackageJsonPath=''
@@ -104,8 +105,8 @@ function _displayDefault() {
 
   # CURRENT_DIR
   # -----------
-  pecho "\033]1337;SetKeyLabel=F1=👉 $(echo $(pwd) | awk -F/ '{print $(NF-1)"/"$(NF)}')\a"
-  bindkey -s '^[OP' 'pwd \n'
+  
+  _setKey 'F1' "👉 $(echo $(pwd) | awk -F/ '{print $(NF-1)"/"$(NF)}')" "ls -la \n"
 
   # GIT
   # ---
@@ -129,45 +130,43 @@ function _displayDefault() {
 
     [ -n "${indicators}" ] && touchbarIndicators="🔥[${indicators}]" || touchbarIndicators="🙌";
 
-    pecho "\033]1337;SetKeyLabel=F2=🎋 $(git_current_branch)\a"
-    pecho "\033]1337;SetKeyLabel=F3=$touchbarIndicators\a"
-    pecho "\033]1337;SetKeyLabel=F4=✉️ push\a";
-
-    # bind git actions
-    bindkey -s '^[OQ' 'git branch -a \n'
-    bindkey -s '^[OR' 'git status \n'
-    bindkey -s '^[OS' "git push origin $(git_current_branch) \n"
+    _setKey 'F2' "🎋 $(git_current_branch)" "git branch -a \n"
+    _setKey 'F3' "$touchbarIndicators" "git status \n"
+    _setKey 'F4' "✉️ push" "git push origin $(git_current_branch) \n"
   fi
 
   # PACKAGE.JSON
   # ------------
   if [[ -f package.json ]]; then
-    pecho "\033]1337;SetKeyLabel=F5=⚡️ npm-run\a"
-    bindkey "${fnKeys[5]}" _displayNpmScripts
+    _setKey 'F5'  '⚡️ npm-run' _displayNpmScripts
   fi
+}
+
+# key, label, callback
+function _setKey() {
+  pecho "\033]1337;SetKeyLabel=${1}=${2}\a"
+  bindkey -s $fnKeys[$1] $3
 }
 
 function _displayNpmScripts() {
   # find available npm run scripts only if new directory
   if [[ $lastPackageJsonPath != $(echo "$(pwd)/package.json") ]]; then
     lastPackageJsonPath=$(echo "$(pwd)/package.json")
-    npmScripts=($(node -e "console.log(Object.keys($(npm run --json)).filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
+    npmScripts=($(node -e "console.log(Object.keys($(npm run --"json")).filter(name => !name.includes(':')).sort((a, b) => a.localeCompare(b)).filter((name, idx) => idx < 12).join(' '))"))
   fi
 
-  _clearTouchbar
+  _clearTouchbar  
   _unbindTouchbar
 
   touchBarState='npm'
 
+  _setKey = "F1" "👈 back" _displayDefault
+
   fnKeysIndex=1
   for npmScript in "$npmScripts[@]"; do
     fnKeysIndex=$((fnKeysIndex + 1))
-    bindkey -s $fnKeys[$fnKeysIndex] "npm run $npmScript \n"
-    pecho "\033]1337;SetKeyLabel=F$fnKeysIndex=$npmScript\a"
+    _setKey = "F$fnKeysIndex" $npmScript "npm run $npmScript \n"
   done
-
-  pecho "\033]1337;SetKeyLabel=F1=👈 back\a"
-  bindkey "${fnKeys[1]}" _displayDefault
 }
 
 zle -N _displayDefault
